@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ collection.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <a class="back-link" href="/">{{ _('Back to documents') }}</a>
+
+        <section class="card">
+            <h1>{{ collection.name }}</h1>
+
+            {% if collection_error %}
+            <div class="alert alert-error">
+                {{ collection_error }}
+            </div>
+            {% endif %}
+
+            {% if collection_notice %}
+            <div class="alert alert-success">
+                {{ collection_notice }}
+            </div>
+            {% endif %}
+
+            {% if collection.description %}
+            <p>{{ collection.description }}</p>
+            {% endif %}
+
+            <div class="document-actions">
+                <a href="/?collection_id={{ collection.id }}">{{ _('Filter on home') }}</a>
+                <a href="/collections/{{ collection.id }}/export.md">{{ _('Export Markdown') }}</a>
+                <a href="/collections/{{ collection.id }}/export.md?sections=summaries">{{ _('Summaries MD') }}</a>
+                <a href="/collections/{{ collection.id }}/export.docx">{{ _('Export DOCX') }}</a>
+                <a href="/collections/{{ collection.id }}/export.pdf">{{ _('Export PDF') }}</a>
+
+                <form action="/collections/{{ collection.id }}/delete" method="post" class="inline-form">
+                    <button type="submit" class="delete-button">{{ _('Delete collection') }}</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Edit collection') }}</h2>
+            <form action="/collections/{{ collection.id }}/update" method="post">
+                <input type="text" name="name" value="{{ collection.name }}" placeholder="{{ _('Collection name') }}">
+                <input type="text" name="description" value="{{ collection.description or '' }}"
+                    placeholder="{{ _('Optional description') }}">
+                <button type="submit">{{ _('Save changes') }}</button>
+            </form>
+        </section>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Documents') }}</span>
+                <strong class="stat-value">{{ stats.total_documents }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Total words') }}</span>
+                <strong class="stat-value">{{ stats.total_words }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Total size') }}</span>
+                <strong class="stat-value">{{ stats.total_size }} {{ _('bytes') }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Avg. reading time') }}</span>
+                <strong class="stat-value">{{ stats.avg_reading_time }} {{ _('min read') }}</strong>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Documents') }}</h2>
+
+            {% if documents %}
+            <ul class="document-list">
+                {% for doc in documents %}
+                <li class="document-item">
+                    <div>
+                        <strong>{{ doc.filename }}</strong>
+                        <div class="meta">
+                            <span>{{ doc.file_type }}</span>
+                            <span>{{ doc.word_count }} {{ _('words') }}</span>
+                            <span>{{ doc.estimated_reading_time_min }} {{ _('min read') }}</span>
+                            <span>{{ _(doc.category or "general") }}</span>
+                            <span class="status-badge status-{{ doc.processing_status }}">
+                                {{ _(doc.processing_status) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="document-actions">
+                        <a href="/documents/{{ doc.id }}/view">{{ _('Open') }}</a>
+
+                        <form action="/collections/{{ collection.id }}/remove-document" method="post"
+                            class="inline-form">
+                            <input type="hidden" name="document_id" value="{{ doc.id }}">
+                            <button type="submit" class="delete-button">{{ _('Remove') }}</button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>{{ _('No documents in this collection yet.') }}</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+
+</html>

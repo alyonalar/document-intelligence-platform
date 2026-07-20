@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Document Intelligence Platform') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <h1>{{ _('Document Intelligence Platform') }}</h1>
+        <p>{{ _('Upload TXT, DOCX, PDF, Markdown, or image files for local processing.') }}</p>
+
+        {% if upload_error %}
+        <div class="alert alert-error">
+            {{ upload_error }}
+        </div>
+        {% endif %}
+
+        {% if upload_notice %}
+        <div class="alert alert-success">
+            Uploaded {{ upload_notice.documents }} document(s).
+        </div>
+        {% endif %}
+
+        {% if upload_report %}
+        <section class="card upload-report">
+            <h2>{{ _('Upload results') }}</h2>
+            <p class="preview-text">
+                {{ upload_report.successful }} {{ _('uploaded') }},
+                {{ upload_report.queued }} {{ _('queued') }},
+                {{ upload_report.needs_ocr }} {{ _('needs OCR') }},
+                {{ upload_report.failed }} {{ _('failed') }},
+                {{ upload_report.total }} {{ _('total') }}.
+            </p>
+
+            <div class="upload-result-list">
+                {% for item in upload_report.results %}
+                <article class="upload-result upload-result-{{ item.status }}">
+                    <div>
+                        <strong>{{ item.filename }}</strong>
+                        {% if item.size %}
+                        <span class="meta">{{ item.size }} {{ _('bytes') }}</span>
+                        {% endif %}
+                    </div>
+                    <p>{{ item.message }}</p>
+                    {% if item.reason or item.suggestions %}
+                    <div class="guidance-box">
+                        {% if item.reason %}
+                        <p><strong>{{ _('Why') }}:</strong> {{ item.reason }}</p>
+                        {% endif %}
+                        {% if item.suggestions %}
+                        <p><strong>{{ _('What to do next') }}:</strong></p>
+                        <ul>
+                            {% for suggestion in item.suggestions %}
+                            <li>{{ suggestion }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if item.document_id %}
+                    <a href="/documents/{{ item.document_id }}/view">{{ _('Open') }}</a>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if collection_error %}
+        <div class="alert alert-error">
+            {{ collection_error }}
+        </div>
+        {% endif %}
+
+        {% if collection_notice %}
+        <div class="alert alert-success">
+            {{ collection_notice }}
+        </div>
+        {% endif %}
+
+        {% if workspace_error %}
+        <div class="alert alert-error">
+            {{ _(workspace_error) }}
+        </div>
+        {% endif %}
+
+        {% if semantic_notice %}
+        <div class="alert alert-success">
+            {{ _(semantic_notice) }}
+        </div>
+        {% endif %}
+
+        {% if semantic_error %}
+        <div class="alert alert-error">
+            {{ _(semantic_error) }}
+        </div>
+        {% endif %}
+
+        <section class="status-band" data-section="runtime-status">
+            <div>
+                <strong>{{ _('Semantic search') }}</strong>
+                <span>
+                    {% if semantic_search_enabled %}
+                    {{ _('Enabled') }}
+                    {% elif semantic_search_requested and not semantic_search_configured %}
+                    {{ _('Config needed') }}
+                    {% else %}
+                    {{ _('Disabled') }}
+                    {% endif %}
+                </span>
+                <form action="/settings/semantic-search" method="post" class="status-toggle-form">
+                    {% if semantic_search_requested %}
+                    <button type="submit" name="enabled" value="false" class="status-toggle-button">{{ _('Disable') }}</button>
+                    {% else %}
+                    <button type="submit" name="enabled" value="true" class="status-toggle-button" {% if not semantic_search_configured %}disabled{% endif %}>{{ _('Enable') }}</button>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div>
+                <strong>{{ _('OCR') }}</strong>
+                <span>
+                    {% if ocr_status.available %}
+                    {{ _('Ready') }}
+                    {% elif ocr_status.enabled %}
+                    {{ _('Config needed') }}
+                    {% else %}
+                    {{ _('Disabled') }}
+                    {% endif %}
+                </span>
+            </div>
+
+            <a href="/history">{{ _('Question history') }}</a>
+            <a href="/actions">{{ _('Action items') }}</a>
+
+            {% if reindex_notice %}
+            <p>
+                {{ _('updated') }}: {{ reindex_notice.documents }} {{ _('document(s)') }},
+                {{ reindex_notice.chunks }} {{ _('chunk(s)') }}.
+            </p>
+            {% endif %}
+
+            {% if insights_notice %}
+            <p>
+                {{ _('Updated insights for') }} {{ insights_notice.updated }} {{ _('document(s)') }},
+                {{ _('skipped') }} {{ insights_notice.skipped }}.
+            </p>
+            {% endif %}
+        </section>
+
+        <section class="stats-grid" data-section="document-stats">
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Documents') }}</span>
+                <strong class="stat-value">{{ stats.total_documents }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Total words') }}</span>
+                <strong class="stat-value">{{ stats.total_words }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Total size') }}</span>
+                <strong class="stat-value">{{ stats.total_size }} {{ _('bytes') }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Avg. reading time') }}</span>
+                <strong class="stat-value">{{ stats.avg_reading_time }} {{ _('min read') }}</strong>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Search documents') }}</h2>
+            <form action="/" method="get">
+                <input type="text" name="q" value="{{ query }}"
+                    placeholder="{{ _('Search by filename, text, summary, keywords...') }}">
+                <button type="submit">{{ _('Search') }}</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Filters') }}</h2>
+            <form action="/" method="get">
+                <input type="text" name="q" value="{{ query }}"
+                    placeholder="{{ _('Search by filename, text, summary, keywords...') }}">
+
+                <select name="file_type">
+                    <option value="">{{ _('All file types') }}</option>
+                    <option value="txt" {% if selected_file_type=="txt" %}selected{% endif %}>TXT</option>
+                    <option value="docx" {% if selected_file_type=="docx" %}selected{% endif %}>DOCX</option>
+                    <option value="pdf" {% if selected_file_type=="pdf" %}selected{% endif %}>PDF</option>
+                    <option value="png" {% if selected_file_type=="png" %}selected{% endif %}>PNG</option>
+                    <option value="jpg" {% if selected_file_type=="jpg" %}selected{% endif %}>JPG</option>
+                    <option value="jpeg" {% if selected_file_type=="jpeg" %}selected{% endif %}>JPEG</option>
+                    <option value="tiff" {% if selected_file_type=="tiff" %}selected{% endif %}>TIFF</option>
+                    <option value="md" {% if selected_file_type=="md" %}selected{% endif %}>MD</option>
+                </select>
+
+                <select name="category">
+                    <option value="">{{ _('All categories') }}</option>
+                    <option value="documentation" {% if selected_category=="documentation" %}selected{% endif %}>
+                        {{ _('documentation') }}</option>
+                    <option value="notes" {% if selected_category=="notes" %}selected{% endif %}>{{ _('notes') }}</option>
+                    <option value="education" {% if selected_category=="education" %}selected{% endif %}>{{ _('education') }}
+                    </option>
+                    <option value="fiction" {% if selected_category=="fiction" %}selected{% endif %}>{{ _('fiction') }}</option>
+                    <option value="general" {% if selected_category=="general" %}selected{% endif %}>{{ _('general') }}</option>
+                    <option value="uncategorized" {% if selected_category=="uncategorized" %}selected{% endif %}>
+                        {{ _('uncategorized') }}</option>
+                </select>
+
+                <select name="collection_id">
+                    <option value="">{{ _('All collections') }}</option>
+                    {% for item in collection_filter_options %}
+                    <option value="{{ item.collection.id }}" {% if selected_collection_id==item.collection.id %}selected{% endif %}>
+                        {{ item.collection.name }} ({{ item.document_count }})
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <select name="document_type">
+                    <option value="">{{ _('All document types') }}</option>
+                    {% for doc_type in document_types %}
+                    <option value="{{ doc_type }}" {% if selected_document_type==doc_type %}selected{% endif %}>
+                        {{ _(doc_type) }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <label class="filter-check">
+                    <input type="checkbox" name="has_dates" value="true" {% if selected_has_dates %}checked{% endif %}>
+                    {{ _('Has dates') }}
+                </label>
+
+                <label class="filter-check">
+                    <input type="checkbox" name="has_actions" value="true" {% if selected_has_actions %}checked{% endif %}>
+                    {{ _('Has actions') }}
+                </label>
+
+                <button type="submit">{{ _('Apply') }}</button>
+            </form>
+        </section>
+
+        <section class="card upload-card" data-section="upload-documents">
+            <h2>{{ _('Upload documents') }}</h2>
+            <p class="preview-text">
+                {{ _('Allowed') }}: {{ upload_limits.allowed_extensions|join(", ") }}.
+                {{ _('Max size') }}: {{ upload_limits.max_file_size_mb }} MB.
+            </p>
+            <form action="/documents/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="files" multiple accept=".txt,.docx,.pdf,.md,.png,.jpg,.jpeg,.tiff">
+                <button type="submit">{{ _('Upload') }}</button>
+            </form>
+        </section>
+
+        <section class="card" id="collections">
+            <h2>{{ _('Collections') }}</h2>
+            <form action="/collections/create" method="post">
+                <input type="text" name="name" placeholder="{{ _('Collection name') }}">
+                <input type="text" name="description" placeholder="{{ _('Optional description') }}">
+                <button type="submit">{{ _('Create collection') }}</button>
+            </form>
+
+            {% if collection_summaries %}
+            <details class="compact-panel" open>
+                <summary>{{ _('Show collections') }} ({{ collection_summaries|length }})</summary>
+                <ul class="collection-list">
+                {% for item in collection_summaries %}
+                {% set collection = item.collection %}
+                <li>
+                    <div class="collection-actions">
+                        <a href="/collections/{{ collection.id }}">{{ collection.name }}</a>
+                        <span class="count-badge">{{ item.document_count }} {{ _('document(s)') }}</span>
+                        {% if item.document_count %}
+                        <a href="/?collection_id={{ collection.id }}">{{ _('Filter') }}</a>
+                        {% endif %}
+                        <a href="/collections/{{ collection.id }}/export.md">{{ _('Export') }}</a>
+                        <a href="/collections/{{ collection.id }}/export.docx">DOCX</a>
+                        <a href="/collections/{{ collection.id }}/export.pdf">PDF</a>
+                        <form action="/collections/{{ collection.id }}/delete" method="post" class="inline-form">
+                            <button type="submit" class="delete-button subtle-delete">{{ _('Delete') }}</button>
+                        </form>
+                    </div>
+                    {% if collection.description %}
+                    <span class="collection-description">{{ collection.description }}</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+                </ul>
+            </details>
+            {% endif %}
+        </section>
+
+        <section class="card" data-section="document-library">
+            <details class="compact-panel" data-testid="document-library-panel" open>
+                <summary>{{ _('Your documents') }} ({{ documents|length }})</summary>
+
+            <form action="/workspace" method="post">
+                <ul class="document-list">
+                    {% if not documents %}
+                    <li class="empty-state">
+                        <p><strong>{{ _('No documents yet.') }}</strong></p>
+                        <p>{{ _('Upload a text, PDF, DOCX, Markdown, or image file to start extracting insights and action items.') }}</p>
+                    </li>
+                    {% endif %}
+
+                    {% for doc in documents %}
+                    <li class="document-item">
+                        {% set pipeline = document_pipeline(doc) %}
+                        <div class="document-select">
+                            <input type="checkbox" name="document_ids" value="{{ doc.id }}" id="doc-{{ doc.id }}">
+                        </div>
+
+                        <div>
+                            <label for="doc-{{ doc.id }}">
+                                <strong>{{ doc.filename }}</strong>
+                            </label>
+                            <div class="meta">
+                                <span>{{ doc.file_type }}</span>
+                                <span>{{ doc.file_size }} {{ _('bytes') }}</span>
+                                <span>{{ doc.word_count }} {{ _('words') }}</span>
+                                <span>{{ doc.estimated_reading_time_min }} {{ _('min read') }}</span>
+                                <span>{{ _(doc.category or "general") }}</span>
+                                {% if doc.document_type %}
+                                <span>{{ _(doc.document_type) }}</span>
+                                {% endif %}
+                                {% if doc.detected_dates %}
+                                <span>{{ doc.detected_dates.splitlines()|length }} {{ _('date(s)') }}</span>
+                                {% endif %}
+                                {% if doc.action_items %}
+                                <span>{{ doc.action_items.splitlines()|length }} {{ _('action(s)') }}</span>
+                                {% endif %}
+                                <span class="status-badge status-{{ doc.processing_status }}">
+                                    {{ _(doc.processing_status) }}
+                                </span>
+                                {% if doc.indexed_chunks %}
+                                <span>{{ doc.indexed_chunks }} {{ _('indexed chunks') }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="pipeline-mini" aria-label="Processing status">
+                                <div class="pipeline-mini-header">
+                                    <span>{{ _(pipeline.label) }}</span>
+                                    <span>{{ pipeline.progress }}%</span>
+                                </div>
+                                <div class="pipeline-bar">
+                                    <span style="width: {{ pipeline.progress }}%"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="document-actions">
+                            <a href="/documents/{{ doc.id }}/view">{{ _('Open') }}</a>
+                            {% if collections %}
+                            <input type="hidden" name="document_ids" value="{{ doc.id }}" form="add-doc-{{ doc.id }}">
+                            <select name="collection_id" form="add-doc-{{ doc.id }}" aria-label="{{ _('Collection') }}">
+                                {% for collection in collections %}
+                                <option value="{{ collection.id }}">{{ collection.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" form="add-doc-{{ doc.id }}">{{ _('Add to collection') }}</button>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                {% if documents %}
+                <div class="workspace-actions">
+                    <button type="submit">{{ _('Ask selected documents') }}</button>
+
+                    {% if collections %}
+                    <select name="collection_id">
+                        {% for collection in collections %}
+                        <option value="{{ collection.id }}">{{ collection.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" formaction="/collections/add-documents">{{ _('Add selected to collection') }}</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </form>
+            {% for doc in documents %}
+            <form id="add-doc-{{ doc.id }}" action="/collections/add-documents" method="post"></form>
+            {% endfor %}
+            </details>
+        </section>
+
+        {% if processing_jobs %}
+        <section class="card" data-section="processing-jobs" data-jobs-url="/api/jobs?limit=8" data-include-document="true"
+            data-has-active-jobs="{{ 'true' if has_active_processing_jobs else 'false' }}">
+            <details class="compact-panel" data-testid="processing-jobs-panel">
+                <summary>{{ _('Processing jobs') }} ({{ processing_jobs|length }})</summary>
+                <div class="job-list compact-job-list" data-job-list>
+                    {% for job in processing_jobs %}
+                    <article class="job-item compact-job-item">
+                        <div>
+                            <strong>{{ _(job.job_type) }}</strong>
+                            <span class="status-badge status-{{ job.status }}">{{ _(job.status) }}</span>
+                        </div>
+                        <p class="preview-text">{{ _(job.message or "No message") }}</p>
+                        <p class="source-meta">
+                            {% if job.document_id %}{{ _('Document') }} {{ job.document_id }} / {% endif %}
+                            {{ _('Created') }} {{ job.created_at }}
+                        </p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </details>
+        </section>
+        {% endif %}
+
+        <section class="card admin-tools-card" data-section="admin-tools">
+            <details class="compact-panel" data-testid="admin-tools-panel">
+                <summary>{{ _('Administrative tools') }}</summary>
+                <div class="admin-tools-grid">
+                    <div class="admin-tool">
+                        <h3>{{ _('Vector index') }}</h3>
+                        <p class="preview-text">
+                            {% if semantic_search_configured %}
+                            {{ _('Rebuild the semantic search index for existing documents after enabling ChromaDB retrieval.') }}
+                            {% else %}
+                            {{ _('Add OPENAI_API_KEY before enabling semantic search.') }}
+                            {% endif %}
+                        </p>
+                        <form action="/documents/reindex-all" method="post">
+                            <button type="submit">{{ _('Re-index all documents') }}</button>
+                        </form>
+                    </div>
+                    <div class="admin-tool">
+                        <h3>{{ _('Insights') }}</h3>
+                        <p class="preview-text">
+                            {{ _('Recompute document type, dates, action items, and suggested questions for existing documents.') }}
+                        </p>
+                        <form action="/documents/recompute-insights-all" method="post">
+                            <button type="submit">{{ _('Recompute all insights') }}</button>
+                        </form>
+                    </div>
+                </div>
+            </details>
+        </section>
+    </main>
+    <script src="{{ url_for('static', path='js/jobs.js') }}?v=20260701-i18n-jobs"></script>
+</body>
+
+</html>

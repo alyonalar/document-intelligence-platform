@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Question History') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <a class="back-link" href="/">{{ _('Back to documents') }}</a>
+
+        <section class="card">
+            <h1>{{ _('Question History') }}</h1>
+
+            {% if deleted %}
+            <div class="alert alert-success">
+                {{ _('History entry deleted.') }}
+            </div>
+            {% endif %}
+
+            <form action="/history" method="get">
+                <input type="text" name="q" value="{{ query }}" placeholder="{{ _('Search questions and answers...') }}">
+
+                <select name="scope">
+                    <option value="">{{ _('All scopes') }}</option>
+                    <option value="document" {% if scope=="document" %}selected{% endif %}>{{ _('Document') }}</option>
+                    <option value="workspace" {% if scope=="workspace" %}selected{% endif %}>{{ _('Workspace') }}</option>
+                </select>
+
+                <button type="submit">{{ _('Search') }}</button>
+                <a href="/history/export.md?q={{ query }}&scope={{ scope }}">{{ _('Export Markdown') }}</a>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Entries') }}</h2>
+
+            {% if interactions %}
+            <div class="history-list">
+                {% for entry in interactions %}
+                {% set item = entry.item %}
+                <article class="history-item">
+                    <p class="history-question">{{ item.question }}</p>
+                    <p class="history-answer">{{ item.answer }}</p>
+                    <p class="source-meta">
+                        {{ _(item.scope) }}
+                        {% if item.retrieval %} / {{ item.retrieval }}{% endif %}
+                        {% if item.model %} / {{ item.model }}{% endif %}
+                    </p>
+
+                    {% if entry.sources %}
+                    <div class="source-card">
+                        <p class="source-meta"><strong>{{ _('Sources') }}</strong></p>
+                        {% for source in entry.sources %}
+                        {% if source is string %}
+                        <pre class="document-text chunk-preview">{{ source }}</pre>
+                        {% else %}
+                        {% if source.document_id %}
+                        <p class="source-meta">
+                            <a href="/documents/{{ source.document_id }}/view#chunk-{{ source.chunk_id or 1 }}">
+                                {{ source.filename or _('Open source document') }}
+                            </a>
+                            {% if source.page_number %}
+                            / <a href="/documents/{{ source.document_id }}/view#page-{{ source.page_number }}">{{ _('page') }} {{ source.page_number }}</a>
+                            {% endif %}
+                            {% if source.chunk_id %} / {{ _('chunk') }} {{ source.chunk_id }}{% endif %}
+                        </p>
+                        {% endif %}
+                        <pre class="document-text chunk-preview">{{ source.text or source }}</pre>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <form action="/history/{{ item.id }}/delete" method="post" class="inline-form">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="scope" value="{{ scope }}">
+                        <button type="submit" class="delete-button">{{ _('Delete') }}</button>
+                    </form>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>{{ _('No history entries found.') }}</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+
+</html>

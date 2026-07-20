@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ document.title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <a class="back-link" href="/">{{ _('Back to documents') }}</a>
+
+        <section class="card">
+            <h1>{{ document.title }}</h1>
+
+            <p><strong>{{ _('Original filename') }}:</strong> {{ document.filename }}</p>
+            <p><strong>{{ _('Type') }}:</strong> {{ document.file_type }}</p>
+            <p><strong>{{ _('Size') }}:</strong> {{ document.file_size }} {{ _('bytes') }}</p>
+            <p><strong>{{ _('Word count') }}:</strong> {{ document.word_count }}</p>
+            <p><strong>{{ _('Estimated reading time') }}:</strong> {{ document.estimated_reading_time_min }} {{ _('min read') }}</p>
+            <p><strong>{{ _('Category') }}:</strong> {{ _(document.category or "general") }}</p>
+            <p>
+                <strong>{{ _('Status') }}:</strong>
+                <span class="status-badge status-{{ document.processing_status }}">
+                    {{ _(document.processing_status) }}
+                </span>
+            </p>
+            <p><strong>{{ _('Indexed chunks') }}:</strong> {{ document.indexed_chunks }}</p>
+            <p><strong>{{ _('Semantic search') }}:</strong> {{ _('Enabled') if semantic_search_enabled else _('Disabled') }}</p>
+            <p>
+                <strong>{{ _('OCR') }}:</strong>
+                {% if ocr_status.available %}
+                {{ _('Ready') }} ({{ ocr_status.engine }}, {{ ocr_status.language }})
+                {% elif ocr_status.enabled %}
+                {{ _('Enabled, but not ready') }}
+                {% if ocr_status.missing_python_packages %}
+                (missing: {{ ocr_status.missing_python_packages|join(", ") }})
+                {% elif not ocr_status.command_found %}
+                (missing command: {{ ocr_status.command }})
+                {% endif %}
+                {% else %}
+                {{ _('Disabled') }}
+                {% endif %}
+            </p>
+
+            {% if document.processing_error %}
+            <div class="alert alert-error">
+                {{ document.processing_error }}
+            </div>
+            {% endif %}
+
+            {% if processing_guidance %}
+            <div class="guidance-box guidance-box-warning">
+                {% if processing_guidance.reason %}
+                <p><strong>{{ _('Why') }}:</strong> {{ processing_guidance.reason }}</p>
+                {% endif %}
+                {% if processing_guidance.suggestions %}
+                <p><strong>{{ _('What to do next') }}:</strong></p>
+                <ul>
+                    {% for suggestion in processing_guidance.suggestions %}
+                    <li>{{ suggestion }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="processing-pipeline" aria-label="{{ _('Processing pipeline') }}">
+                <div class="pipeline-summary">
+                    <div>
+                        <strong>{{ _('Processing pipeline') }}</strong>
+                        <span class="pipeline-label">{{ _(processing_pipeline.label) }}</span>
+                        <p>{{ _(processing_pipeline.description) }}</p>
+                    </div>
+                    <span>{{ processing_pipeline.progress }}%</span>
+                </div>
+                <div class="pipeline-bar">
+                    <span style="width: {{ processing_pipeline.progress }}%"></span>
+                </div>
+                <ol class="pipeline-steps">
+                    {% for step in processing_pipeline.steps %}
+                    <li class="pipeline-step pipeline-step-{{ step.state }}">
+                        <span>{{ _(step.label) }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+
+            {% if reindex_result %}
+            <div class="notice">
+                {% if reindex_result.retry %}
+                {{ reindex_result.message }}
+                {% elif reindex_result.enabled %}
+                {{ _('Indexed') }} {{ reindex_result.indexed_chunks }} {{ _('chunk(s)') }}.
+                {% else %}
+                {{ _('Semantic search') }} {{ _('Disabled') }}. {{ _('Enable it from Administrative tools before indexing.') }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if insights_result %}
+            <div class="notice">
+                {{ insights_result.message }}
+                {% if insights_result.success %}
+                        {{ _('Type') }}: {{ _(insights_result.document_type) }},
+                {{ _('Dates') }}: {{ insights_result.dates }},
+                {{ _('Actions') }}: {{ insights_result.actions }},
+                {{ _('Question history') }}: {{ insights_result.questions }}.
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="document-actions">
+                <a href="/documents/{{ document.id }}/export.md">{{ _('Export Markdown') }}</a>
+                <a href="/documents/{{ document.id }}/export.md?sections=actions">{{ _('Actions MD') }}</a>
+                <a href="/documents/{{ document.id }}/export.md?sections=history">{{ _('History MD') }}</a>
+                <a href="/documents/{{ document.id }}/export.docx">{{ _('Export DOCX') }}</a>
+                <a href="/documents/{{ document.id }}/export.pdf">{{ _('Export PDF') }}</a>
+
+                <form action="/documents/{{ document.id }}/reindex" method="post" class="inline-form">
+                    <button type="submit">{{ _('Re-index document') }}</button>
+                </form>
+
+                <form action="/documents/{{ document.id }}/recompute-insights" method="post" class="inline-form">
+                    <button type="submit">{{ _('Recompute insights') }}</button>
+                </form>
+
+                <form action="/documents/{{ document.id }}/recompute-intelligence" method="post" class="inline-form">
+                    <button type="submit">{{ _('Recompute intelligence') }}</button>
+                </form>
+
+                {% if document.processing_status in ["failed", "needs_ocr"] %}
+                <form action="/documents/{{ document.id }}/retry" method="post" class="inline-form">
+                    <button type="submit">{{ _('Retry processing') }}</button>
+                </form>
+                {% endif %}
+
+                <form action="/documents/{{ document.id }}/delete" method="post" class="inline-form">
+                    <button type="submit" class="delete-button">{{ _('Delete document') }}</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="card" id="intelligence">
+            <h2>{{ _('Document Intelligence') }}</h2>
+            <p>
+                <strong>{{ _('Status') }}:</strong>
+                <span class="status-badge status-{{ document.intelligence_status }}">{{ _(document.intelligence_status) }}</span>
+                {% if document.intelligence_processed_at %}/ {{ _('processed') }} {{ document.intelligence_processed_at }}{% endif %}
+            </p>
+            {% if document.intelligence_error %}
+            <div class="alert alert-error">{{ document.intelligence_error }}</div>
+            {% endif %}
+
+            <h3>{{ _('Entities') }}</h3>
+            {% if intelligence_entities %}
+            <ul class="summary-list">
+                {% for entity in intelligence_entities %}
+                <li><strong>{{ _(entity.entity_type) }}</strong>: {{ entity.value }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>{{ _('No entities extracted yet.') }}</p>{% endif %}
+
+            <h3>{{ _('Related Documents') }}</h3>
+            {% if intelligence_relations %}
+            <ul class="summary-list">
+                {% for relation in intelligence_relations %}
+                <li>{{ _(relation.relation_type) }}{% if relation.target_document_id %} / {{ _('document') }} {{ relation.target_document_id }}{% endif %}: {{ relation.evidence_text }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>{{ _('No relations found yet.') }}</p>{% endif %}
+
+            <h3>{{ _('Obligations') }}</h3>
+            {% if intelligence_obligations %}
+            <ul class="summary-list">
+                {% for obligation in intelligence_obligations %}
+                <li><strong>{{ _(obligation.status) }}</strong>: {{ obligation.subject }} {{ obligation.action }}{% if obligation.due_date_text %} / {{ _('Due soon') }} {{ obligation.due_date_text }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>{{ _('No obligations found yet.') }}</p>{% endif %}
+
+            <h3>{{ _('Risks') }}</h3>
+            {% if intelligence_risks %}
+            <ul class="summary-list">
+                {% for risk in intelligence_risks %}
+                <li><strong>{{ _(risk.severity) }}</strong>: {{ risk.title }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>{{ _('No risks found yet.') }}</p>{% endif %}
+
+        </section>
+
+        <section class="card" id="ask-document">
+            <h2>{{ _('Ask this document') }}</h2>
+
+            <form action="/documents/{{ document.id }}/ask#ask-document" method="get" class="ask-form">
+                <input type="text" name="question" value="{{ current_question }}"
+                    placeholder="{{ _('Ask something about this document...') }}" data-question-input>
+
+                <select name="mode">
+                    <option value="local" {% if current_mode=="local" %}selected{% endif %}>{{ _('Local') }}</option>
+                    <option value="llm" {% if current_mode=="llm" %}selected{% endif %}>LLM</option>
+                </select>
+
+                <button type="submit">{{ _('Ask') }}</button>
+            </form>
+
+            {% if document.suggested_questions %}
+            <div class="suggested-questions suggested-questions-inline">
+                <p class="suggested-title">{{ _('Suggested questions') }}</p>
+                <div class="suggested-grid">
+                    {% for question in document.suggested_questions.splitlines() %}
+                    {% if question.strip() %}
+                    <button type="button" class="suggestion-chip" data-question-suggestion="{{ _(question) }}">
+                        {{ _(question) }}
+                    </button>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if qa_result %}
+            <div class="qa-result">
+                <h3>{{ _('Answer') }}</h3>
+                <p>{{ _(qa_result.answer) }}</p>
+
+                {% if qa_result.model %}
+                <p><strong>{{ _('Model') }}:</strong> {{ qa_result.model }}</p>
+                {% endif %}
+
+                {% if qa_result.retrieval %}
+                <p><strong>{{ _('Retrieval') }}:</strong> {{ qa_result.retrieval }}</p>
+                {% endif %}
+
+                {% if qa_result.evidence %}
+                <h3>{{ _('Relevant sentences') }}</h3>
+                <ul class="summary-list">
+                    {% for item in qa_result.evidence %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                {% if qa_result.relevant_chunks %}
+                <h3>{{ _('Sources used') }}</h3>
+
+                {% if current_mode == "llm" %}
+                {% for chunk in qa_result.relevant_chunks %}
+                <p>
+                    <strong>{{ _('Chunk') }} {{ chunk.id }}</strong>
+                    {% if chunk.page_number %}
+                    <a href="/documents/{{ document.id }}/view#page-{{ chunk.page_number }}">{{ _('Page') }} {{ chunk.page_number }}</a>
+                    {% endif %}
+                    <a href="/documents/{{ document.id }}/view#chunk-{{ chunk.chunk_id or chunk.id }}">{{ _('Open source chunk') }}</a>
+                    {% if original_preview %}
+                    <a href="/documents/{{ document.id }}/view#original-preview">{{ _('Original preview') }}</a>
+                    {% endif %}
+                </p>
+                <pre class="document-text chunk-preview">{{ chunk.text }}</pre>
+                {% endfor %}
+                {% else %}
+                {% for chunk in qa_result.relevant_chunks %}
+                <p>
+                    {% if chunk.text %}
+                    <strong>{{ _('Chunk') }} {{ chunk.chunk_id or chunk.id }}</strong>
+                    {% if chunk.page_number %}
+                    <a href="/documents/{{ document.id }}/view#page-{{ chunk.page_number }}">{{ _('Page') }} {{ chunk.page_number }}</a>
+                    {% endif %}
+                    <a href="/documents/{{ document.id }}/view#chunk-{{ chunk.chunk_id or chunk.id }}">{{ _('Open source chunk') }}</a>
+                    {% if original_preview %}
+                    <a href="/documents/{{ document.id }}/view#original-preview">{{ _('Original preview') }}</a>
+                    {% endif %}
+                    {% else %}
+                    <a href="/documents/{{ document.id }}/view#extracted-text">{{ _('Open in extracted text') }}</a>
+                    {% endif %}
+                </p>
+                <pre class="document-text chunk-preview">{{ chunk.text or chunk }}</pre>
+                {% endfor %}
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+
+        {% if history %}
+        <section class="card" data-section="recent-questions">
+            <details class="compact-panel" id="recent-questions" data-testid="recent-questions-panel">
+                <summary>{{ _('Recent questions') }} ({{ history|length }})</summary>
+                <div class="history-list compact-history-list">
+                    {% for item in history %}
+                    <article class="history-item compact-history-item">
+                        <p class="history-question">{{ item.question }}</p>
+                        <p class="history-answer">{{ item.answer }}</p>
+                        <p class="source-meta">
+                            {{ _(item.scope) }}
+                            {% if item.retrieval %} / {{ item.retrieval }}{% endif %}
+                            {% if item.model %} / {{ item.model }}{% endif %}
+                        </p>
+                        <form action="/documents/{{ document.id }}/history/{{ item.id }}/delete" method="post" class="inline-form">
+                            <button type="submit" class="delete-button subtle-delete">{{ _('Delete') }}</button>
+                        </form>
+                    </article>
+                    {% endfor %}
+                </div>
+            </details>
+        </section>
+        {% endif %}
+
+        {% if original_preview %}
+        <section class="card original-preview" id="original-preview" data-section="original-preview">
+            <h2>{{ _('Original preview') }}</h2>
+            <p class="preview-text">
+                {{ _('Open the uploaded file next to extracted text and source citations.') }}
+            </p>
+
+            {% if original_preview.type == "image" %}
+            <img class="original-preview-image" data-testid="original-preview-image" src="{{ original_preview.url }}" alt="{{ original_preview.filename }}">
+            {% elif original_preview.type == "pdf" %}
+            {% if original_preview.thumbnails %}
+            <div class="preview-thumbnail-grid">
+                {% for thumbnail in original_preview.thumbnails %}
+                <a class="preview-thumbnail" href="#page-{{ thumbnail.page_number }}">
+                    <img src="{{ thumbnail.url }}" alt="{{ _('Page') }} {{ thumbnail.page_number }} thumbnail">
+                    <span>{{ _('Page') }} {{ thumbnail.page_number }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <iframe class="original-preview-frame" src="{{ original_preview.url }}" title="{{ original_preview.filename }}"></iframe>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if source_navigation.total_pages or source_navigation.total_chunks %}
+        <section class="card source-map" id="source-map" data-section="source-map">
+            <h2>{{ _('Source map') }}</h2>
+            <p class="preview-text">
+                {{ _('Jump to extracted pages and chunks used by citations.') }}
+                {{ source_navigation.total_pages }} {{ _('page(s)') }},
+                {{ source_navigation.total_chunks }} {{ _('chunk(s)') }}.
+            </p>
+
+            <div class="source-map-actions">
+                {% if original_preview %}
+                <a href="#original-preview">{{ _('Original preview') }}</a>
+                {% endif %}
+                <a href="#extracted-text">{{ _('Extracted text') }}</a>
+                {% if source_navigation.total_pages %}
+                <a href="#pages">{{ _('Pages') }}</a>
+                {% endif %}
+            </div>
+
+            {% if source_navigation.pages %}
+            <h3>{{ _('Pages') }}</h3>
+            <div class="source-map-grid">
+                {% for page in source_navigation.pages %}
+                <a class="source-map-link" href="#page-{{ page.page_number }}">
+                    <strong>{{ _('Page') }} {{ page.page_number }}</strong>
+                    {% if page.snippet %}
+                    <span>{{ page.snippet }}</span>
+                    {% endif %}
+                    {% if original_preview %}
+                    <span>{{ _('Original preview available') }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if source_navigation.chunks %}
+            <h3>{{ _('Chunks') }}</h3>
+            <div class="source-map-grid">
+                {% for chunk in source_navigation.chunks %}
+                <a class="source-map-link" href="#chunk-{{ chunk.chunk_id }}">
+                    <strong>
+                        {{ _('Chunk') }} {{ chunk.chunk_id }}
+                        {% if chunk.page_number %}/ {{ _('Page') }} {{ chunk.page_number }}{% endif %}
+                    </strong>
+                    {% if chunk.snippet %}
+                    <span>{{ chunk.snippet }}</span>
+                    {% endif %}
+                    {% if original_preview %}
+                    <span>{{ _('Original preview available') }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="card">
+            <h2>{{ _('Document insights') }}</h2>
+            <div class="insight-grid">
+                <div class="insight-panel">
+                    <span class="insight-label">{{ _('Type') }}</span>
+                    <strong>{{ _(document.document_type or "general document") }}</strong>
+                </div>
+                <div class="insight-panel">
+                    <span class="insight-label">{{ _('Dates') }}</span>
+                    <strong>{{ document.detected_dates.splitlines()|length if document.detected_dates else 0 }}</strong>
+                </div>
+                <div class="insight-panel">
+                    <span class="insight-label">{{ _('Actions') }}</span>
+                    <strong>{{ document.action_items.splitlines()|length if document.action_items else 0 }}</strong>
+                </div>
+            </div>
+
+            {% if document.detected_dates %}
+            <h3>{{ _('Detected dates') }}</h3>
+            <ul class="summary-list">
+                {% for item in document.detected_dates.splitlines() %}
+                {% if item.strip() %}
+                <li>{{ item }}</li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if document.action_items %}
+            <h3>{{ _('Possible actions') }}</h3>
+            <ul class="summary-list">
+                {% for item in document.action_items.splitlines() %}
+                {% if item.strip() %}
+                <li>{{ item }}</li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Document structure') }}</h2>
+
+            <p><strong>{{ _('Estimated pages') }}:</strong> {{ structure.estimated_pages }}</p>
+
+            {% if structure.sections %}
+            <h3>{{ _('Sections') }}</h3>
+            <ul class="summary-list">
+                {% for section in structure.sections %}
+                <li>{{ section }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>{{ _('No clear sections detected.') }}</p>
+            {% endif %}
+
+            {% if structure.preview_blocks %}
+            <h3>{{ _('Preview') }}</h3>
+            {% for block in structure.preview_blocks %}
+            <pre class="document-text chunk-preview">{{ block }}</pre>
+            {% endfor %}
+            {% endif %}
+        </section>
+
+        {% if document_pages %}
+        <section class="card" id="pages">
+            <h2>{{ _('Pages') }}</h2>
+            <div class="page-preview-list">
+                {% for page in document_pages %}
+                <article id="page-{{ page.page_number }}" class="page-preview">
+                    <p class="source-meta">
+                        {{ _('Page') }} {{ page.page_number }}
+                        {% if original_preview %}/ <a href="#original-preview">{{ _('Original preview') }}</a>{% endif %}
+                    </p>
+                    <pre class="document-text chunk-preview">{{ page.text }}</pre>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="card">
+            <h2>{{ _('Bullet summary') }}</h2>
+            {% if document.bullet_summary %}
+            <ul class="summary-list">
+                {% for point in document.bullet_summary.split('\n') %}
+                {% if point.strip() %}
+                <li>{{ point }}</li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>{{ _('No bullet summary available.') }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>{{ _('LLM Summary') }}</h2>
+
+            <form action="/documents/{{ document.id }}/generate-summary" method="post">
+                <button type="submit">{{ _('Generate LLM Summary') }}</button>
+            </form>
+
+            {% if document.llm_summary %}
+            <div class="qa-result">
+                <p>{{ document.llm_summary }}</p>
+            </div>
+            {% else %}
+            <p>{{ _('No LLM summary generated yet.') }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Keywords') }}</h2>
+            {% if document.keywords %}
+            <p>{{ document.keywords }}</p>
+            {% else %}
+            <p>{{ _('No keywords extracted.') }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Key points') }}</h2>
+            {% if document.key_points %}
+            <pre class="document-text">{{ document.key_points }}</pre>
+            {% else %}
+            <p>{{ _('No key points extracted.') }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card" id="extracted-text" data-section="extracted-text">
+            <h2>{{ _('Extracted text') }}</h2>
+            {% if document.raw_text %}
+            {% if document_chunks %}
+            {% for chunk in document_chunks %}
+            <article id="chunk-{{ chunk.chunk_id }}" class="source-chunk">
+                <p class="source-meta">
+                    {{ _('Chunk') }} {{ chunk.chunk_id }}
+                    {% if chunk.page_number %}/ {{ _('Page') }} {{ chunk.page_number }}{% endif %}
+                    {% if original_preview %}/ <a href="#original-preview">{{ _('Original preview') }}</a>{% endif %}
+                </p>
+                <pre class="document-text">{{ chunk.text }}</pre>
+            </article>
+            {% endfor %}
+            {% else %}
+            <pre class="document-text">{{ document.raw_text }}</pre>
+            {% endif %}
+            {% else %}
+            <div class="empty-state">
+                <p><strong>{{ _('No text extracted from this file.') }}</strong></p>
+                <p>{{ _('The file was saved, but no readable text was extracted.') }}</p>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if processing_jobs %}
+        <section class="card" data-jobs-url="/api/documents/{{ document.id }}/jobs?limit=8"
+            data-has-active-jobs="{{ 'true' if has_active_processing_jobs else 'false' }}">
+            <details class="compact-panel">
+                <summary>{{ _('Processing jobs') }} ({{ processing_jobs|length }})</summary>
+                <div class="job-list compact-job-list" data-job-list>
+                    {% for job in processing_jobs %}
+                    <article class="job-item compact-job-item">
+                        <div>
+                            <strong>{{ _(job.job_type) }}</strong>
+                            <span class="status-badge status-{{ job.status }}">{{ _(job.status) }}</span>
+                        </div>
+                        <p class="preview-text">{{ _(job.message or "No message") }}</p>
+                        <p class="source-meta">
+                            {{ _('Created') }} {{ job.created_at }}
+                            {% if job.started_at %}/ {{ _('Started') }} {{ job.started_at }}{% endif %}
+                            {% if job.finished_at %}/ {{ _('Finished') }} {{ job.finished_at }}{% endif %}
+                        </p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </details>
+        </section>
+        {% endif %}
+    </main>
+    <script src="{{ url_for('static', path='js/jobs.js') }}?v=20260701-i18n-jobs"></script>
+    <script src="{{ url_for('static', path='js/question_suggestions.js') }}"></script>
+</body>
+
+</html>

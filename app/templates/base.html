@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Document Intelligence Platform{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

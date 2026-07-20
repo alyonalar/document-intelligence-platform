@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Obligations{% endblock %}
+{% block content %}
+<a class="back-link" href="/intelligence">Back to intelligence</a>
+<section class="card">
+    <h1>Obligations</h1>
+    <p>Rule-based candidates for human review. Status and dates are not legal advice.</p>
+    <form action="/obligations" method="get">
+        <select name="status">
+            <option value="">All statuses</option>
+            {% for status in ["open", "overdue", "no_due_date", "done", "dismissed"] %}
+            <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+        </select>
+        <select name="document_id">
+            <option value="">All documents</option>
+            {% for document in documents %}
+            <option value="{{ document.id }}" {% if selected_document_id == document.id %}selected{% endif %}>{{ document.filename }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+</section>
+<section class="stats-grid">
+    <div class="stat-card"><span class="stat-label">Total</span><strong class="stat-value">{{ summary.total }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Overdue</span><strong class="stat-value">{{ summary.overdue }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Due soon</span><strong class="stat-value">{{ summary.due_soon }}</strong></div>
+    <div class="stat-card"><span class="stat-label">No due date</span><strong class="stat-value">{{ summary.no_due_date }}</strong></div>
+</section>
+<section class="card">
+    <h2>Detected candidates</h2>
+    {% for item in obligations %}
+    <article class="action-item">
+        <p><strong>{{ item.status }}</strong>: {{ item.subject }} {{ item.action }}</p>
+        <p class="source-meta">Document {{ item.document_id }}{% if item.due_date_text %} / due {{ item.due_date_text }}{% endif %} / rule score {{ "%.0f"|format((item.confidence or 0) * 100) }}%</p>
+        <pre class="document-text chunk-preview">{{ item.source_text }}</pre>
+        <form action="/obligations/{{ item.id }}/status" method="post" class="inline-form">
+            <button name="status_value" value="done">Done</button>
+            <button name="status_value" value="dismissed">Dismiss</button>
+        </form>
+    </article>
+    {% else %}
+    <p>No obligation candidates match the current filters.</p>
+    {% endfor %}
+</section>
+{% endblock %}

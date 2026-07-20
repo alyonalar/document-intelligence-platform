@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Intelligence Dashboard{% endblock %}
+{% block content %}
+<a class="back-link" href="/">Back to documents</a>
+<section class="card">
+    <h1>Intelligence Dashboard</h1>
+    <p>Explainable, rule-based extraction intended for experimentation and human review.</p>
+    <form action="/api/intelligence/recompute-all" method="post" class="inline-form">
+        <button type="submit">Recompute all intelligence</button>
+    </form>
+</section>
+<section class="stats-grid">
+    <div class="stat-card"><span class="stat-label">Entities</span><strong class="stat-value">{{ summary.total_entities }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Relations</span><strong class="stat-value">{{ summary.total_relations }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Open obligations</span><strong class="stat-value">{{ summary.open_obligations }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Overdue</span><strong class="stat-value">{{ summary.overdue_obligations }}</strong></div>
+    <div class="stat-card"><span class="stat-label">High risks</span><strong class="stat-value">{{ summary.high_risks }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Errors</span><strong class="stat-value">{{ summary.documents_with_intelligence_errors }}</strong></div>
+</section>
+<section class="card">
+    <h2>Top organizations</h2>
+    <ul class="summary-list">
+        {% for value, count in summary.top_organizations %}<li>{{ value }}: {{ count }}</li>{% else %}<li>No organizations extracted yet.</li>{% endfor %}
+    </ul>
+    <h2>Top related documents</h2>
+    <ul class="summary-list">
+        {% for doc_id, filename, count in summary.top_related_documents %}<li><a href="/documents/{{ doc_id }}/view">{{ filename }}</a>: {{ count }} relation(s)</li>{% else %}<li>No relationships built yet.</li>{% endfor %}
+    </ul>
+</section>
+{% endblock %}
