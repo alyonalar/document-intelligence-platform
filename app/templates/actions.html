@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Document Actions') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}?v=20260728-actions-report">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <a class="back-link" href="/">{{ _('Back to documents') }}</a>
+
+        <section class="card">
+            <h1>{{ _('Document Actions') }}</h1>
+
+            <form action="/actions" method="get" class="actions-filter-form">
+                <input type="text" name="q" value="{{ query }}" placeholder="{{ _('Search actions, documents, dates...') }}">
+
+                <select name="document_type">
+                    <option value="">{{ _('All document types') }}</option>
+                    {% for doc_type in document_types %}
+                    <option value="{{ doc_type }}" {% if selected_document_type==doc_type %}selected{% endif %}>
+                        {{ doc_type }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <label class="filter-check">
+                    <input type="checkbox" name="has_dates" value="true" {% if selected_has_dates %}checked{% endif %}>
+                    {{ _('Has dates') }}
+                </label>
+
+                <select name="timing_status">
+                    <option value="">{{ _('All timing') }}</option>
+                    <option value="overdue" {% if selected_timing_status=="overdue" %}selected{% endif %}>{{ _('Overdue') }}</option>
+                    <option value="upcoming" {% if selected_timing_status=="upcoming" %}selected{% endif %}>{{ _('Upcoming') }}</option>
+                    <option value="no_date" {% if selected_timing_status=="no_date" %}selected{% endif %}>{{ _('No date') }}</option>
+                </select>
+
+                <select name="completion_status">
+                    <option value="open" {% if selected_completion_status=="open" %}selected{% endif %}>{{ _('Open') }}</option>
+                    <option value="done" {% if selected_completion_status=="done" %}selected{% endif %}>{{ _('Done') }}</option>
+                    <option value="all" {% if selected_completion_status=="all" %}selected{% endif %}>{{ _('All status') }}</option>
+                </select>
+
+                <button type="submit">{{ _('Search') }}</button>
+                <a class="report-download-link"
+                    data-testid="actions-report-download"
+                    href="/actions/export.md?q={{ query }}&document_type={{ selected_document_type }}&document_id={{ selected_document_id or '' }}&has_dates={{ 'true' if selected_has_dates else 'false' }}&timing_status={{ selected_timing_status }}&completion_status={{ selected_completion_status }}">
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" x2="12" y1="15" y2="3"></line>
+                    </svg>
+                    <span>{{ _('Download report (.md)') }}</span>
+                </a>
+            </form>
+        </section>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Actions') }}</span>
+                <strong class="stat-value">{{ action_stats.total }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Overdue') }}</span>
+                <strong class="stat-value">{{ action_stats.overdue }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Upcoming') }}</span>
+                <strong class="stat-value">{{ action_stats.upcoming }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Due soon') }}</span>
+                <strong class="stat-value">{{ action_stats.due_soon }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('No date') }}</span>
+                <strong class="stat-value">{{ action_stats.no_date }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Open') }}</span>
+                <strong class="stat-value">{{ action_stats.open }}</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Done') }}</span>
+                <strong class="stat-value">{{ action_stats.done }}</strong>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Actions') }}</h2>
+
+            {% if actions %}
+            <div class="action-list">
+                {% for action in actions %}
+                <article class="action-item">
+                    <div class="action-heading">
+                        <p class="action-text">{{ action.text }}</p>
+                        <span class="status-badge status-{{ action.timing_status }}">{{ _(action.due_label) }}</span>
+                    </div>
+                    <p class="source-meta">
+                        <a href="/documents/{{ action.document_id }}/view{{ action.source_anchor }}">{{ action.title }}</a>
+                        {% if action.source_chunk_id %}
+                        / <a href="/documents/{{ action.document_id }}/view#chunk-{{ action.source_chunk_id }}">{{ _('source chunk') }} {{ action.source_chunk_id }}</a>
+                        {% else %}
+                        / <a href="/documents/{{ action.document_id }}/view#extracted-text">{{ _('source text') }}</a>
+                        {% endif %}
+                        / {{ _(action.document_type) }}
+                        / {{ _(action.completion_status) }}
+                        / {{ _(action.due_date_source) }} {{ _('date') }}
+                        {% if action.dates %}
+                        / {{ action.dates|join(", ") }}
+                        {% endif %}
+                    </p>
+                    {% if action.context %}
+                    <pre class="document-text chunk-preview action-context">{{ action.context }}</pre>
+                    {% endif %}
+                    {% if action.note %}
+                    <p class="action-note"><strong>{{ _('Note') }}:</strong> {{ action.note }}</p>
+                    {% endif %}
+                    <form action="/actions/{{ action.action_key }}/note" method="post" class="inline-form action-note-form">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="document_type" value="{{ selected_document_type }}">
+                        <input type="hidden" name="document_id" value="{{ selected_document_id or '' }}">
+                        <input type="hidden" name="has_dates" value="{{ 'true' if selected_has_dates else '' }}">
+                        <input type="hidden" name="timing_status" value="{{ selected_timing_status }}">
+                        <input type="hidden" name="completion_status" value="{{ selected_completion_status }}">
+                        <input type="text" name="note" value="{{ action.note }}" placeholder="{{ _('Add a note...') }}">
+                        <input type="date" name="due_date_override" value="{{ action.due_date_override or '' }}">
+                        <button type="submit">{{ _('Save details') }}</button>
+                    </form>
+                    <form action="/actions/{{ action.action_key }}/status" method="post" class="inline-form action-status-form">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="document_type" value="{{ selected_document_type }}">
+                        <input type="hidden" name="document_id" value="{{ selected_document_id or '' }}">
+                        <input type="hidden" name="has_dates" value="{{ 'true' if selected_has_dates else '' }}">
+                        <input type="hidden" name="timing_status" value="{{ selected_timing_status }}">
+                        <input type="hidden" name="completion_status" value="{{ selected_completion_status }}">
+                        {% if action.completed %}
+                        <button type="submit" name="status_value" value="open">{{ _('Reopen') }}</button>
+                        {% else %}
+                        <button type="submit" name="status_value" value="done">{{ _('Mark done') }}</button>
+                        {% endif %}
+                    </form>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p><strong>{{ _('No action items found.') }}</strong></p>
+                <p>{{ _('Try clearing filters, uploading a document with dates or next steps, or recomputing insights for existing documents.') }}</p>
+            </div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+
+</html>

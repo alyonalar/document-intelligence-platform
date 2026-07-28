@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Document Graph{% endblock %}
+{% block content %}
+<a class="back-link" href="/intelligence">Back to intelligence</a>
+<section class="card">
+    <h1>Document Graph</h1>
+    <p>This MVP stores document/entity relationships in SQL and presents them as tables.</p>
+    <form action="/graph/rebuild" method="post" class="inline-form">
+        <button type="submit">Rebuild graph</button>
+    </form>
+</section>
+<section class="card">
+    <h2>Entities and Connected Documents</h2>
+    <table>
+        <thead><tr><th>Entity</th><th>Type</th><th>Document</th></tr></thead>
+        <tbody>
+        {% for entity, document in rows %}
+            <tr><td>{{ entity.value }}</td><td>{{ entity.entity_type }}</td><td><a href="/documents/{{ document.id }}/view">{{ document.filename }}</a></td></tr>
+        {% else %}
+            <tr><td colspan="3">No entities have been extracted yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+<section class="card">
+    <h2>Relations</h2>
+    <table>
+        <thead><tr><th>Source</th><th>Target</th><th>Type</th><th>Evidence</th></tr></thead>
+        <tbody>
+        {% for relation in relations %}
+            <tr><td>{{ relation.source_document_id }}</td><td>{{ relation.target_document_id or relation.target_entity_id }}</td><td>{{ relation.relation_type }}</td><td>{{ relation.evidence_text }}</td></tr>
+        {% else %}
+            <tr><td colspan="4">No relationships have been built yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

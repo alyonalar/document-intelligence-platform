@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Risks{% endblock %}
+{% block content %}
+<a class="back-link" href="/intelligence">Back to intelligence</a>
+<section class="card">
+    <h1>Risks</h1>
+    <p>Keyword-based candidates for human review, not a legal assessment.</p>
+    <form action="/risks" method="get">
+        <select name="severity">
+            <option value="">All severities</option>
+            {% for severity in ["high", "medium", "low"] %}
+            <option value="{{ severity }}" {% if selected_severity == severity %}selected{% endif %}>{{ severity }}</option>
+            {% endfor %}
+        </select>
+        <input name="risk_type" value="{{ selected_risk_type }}" placeholder="Risk type">
+        <select name="document_id">
+            <option value="">All documents</option>
+            {% for document in documents %}
+            <option value="{{ document.id }}" {% if selected_document_id == document.id %}selected{% endif %}>{{ document.filename }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+</section>
+<section class="stats-grid">
+    <div class="stat-card"><span class="stat-label">Total</span><strong class="stat-value">{{ summary.total }}</strong></div>
+    <div class="stat-card"><span class="stat-label">High</span><strong class="stat-value">{{ summary.high }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Medium</span><strong class="stat-value">{{ summary.medium }}</strong></div>
+    <div class="stat-card"><span class="stat-label">Low</span><strong class="stat-value">{{ summary.low }}</strong></div>
+</section>
+<section class="card">
+    <h2>Detected candidates</h2>
+    {% for risk in risks %}
+    <article class="action-item">
+        <p><strong>{{ risk.severity }}</strong> / {{ risk.risk_type }}: {{ risk.title }}</p>
+        <p>{{ risk.description }}</p>
+        <p class="source-meta">Rule score {{ "%.0f"|format((risk.confidence or 0) * 100) }}%</p>
+        <pre class="document-text chunk-preview">{{ risk.source_text }}</pre>
+    </article>
+    {% else %}
+    <p>No risk candidates match the current filters.</p>
+    {% endfor %}
+</section>
+{% endblock %}

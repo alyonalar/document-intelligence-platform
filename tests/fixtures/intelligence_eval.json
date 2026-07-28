@@ -1,0 +1,58 @@
+[
+  {
+    "id": "contact-and-date",
+    "text": "Contact legal@example.com before 2026-09-05.",
+    "entities": [["email", "legal@example.com"], ["date", "2026-09-05"]],
+    "risks": [],
+    "has_obligation": false
+  },
+  {
+    "id": "contract-payment",
+    "text": "Contract No INT-2026-001. The buyer must pay 250,000 KZT no later than 2026-09-05.",
+    "entities": [["contract_number", "INT-2026-001"], ["amount", "250,000 KZT"], ["date", "2026-09-05"]],
+    "risks": [],
+    "has_obligation": true
+  },
+  {
+    "id": "invoice-number",
+    "text": "Invoice # INV-2026-045 was accepted.",
+    "entities": [["invoice_number", "INV-2026-045"]],
+    "risks": [],
+    "has_obligation": false
+  },
+  {
+    "id": "act-number",
+    "text": "Act No ACT-2026-010 was signed on 05.09.2026.",
+    "entities": [["act_number", "ACT-2026-010"], ["date", "05.09.2026"]],
+    "risks": [],
+    "has_obligation": false
+  },
+  {
+    "id": "phone-not-date",
+    "text": "Call +7 777 123 45 67 on 05.09.2026.",
+    "entities": [["phone", "+7 777 123 45 67"], ["date", "05.09.2026"]],
+    "risks": [],
+    "has_obligation": false
+  },
+  {
+    "id": "risk-clauses",
+    "text": "A penalty applies after termination. Confidentiality survives any late payment dispute.",
+    "entities": [],
+    "risks": ["penalty", "termination", "confidentiality", "payment_delay"],
+    "has_obligation": false
+  },
+  {
+    "id": "russian-obligation",
+    "text": "Договор № KZ-77. Поставщик обязан предоставить отчет в течение 10 дней. За просрочку начисляется неустойка.",
+    "entities": [["contract_number", "KZ-77"]],
+    "risks": ["penalty", "payment_delay"],
+    "has_obligation": true
+  },
+  {
+    "id": "plain-text-negative",
+    "text": "This internal note describes the project background and contains no commitments.",
+    "entities": [],
+    "risks": [],
+    "has_obligation": false
+  }
+]

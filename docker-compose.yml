@@ -1,0 +1,39 @@
+services:
+  document-assistant:
+    build: .
+    container_name: document-assistant
+    environment:
+      APP_NAME: ${APP_NAME:-Document Intelligence Platform}
+      DEBUG: ${DEBUG:-false}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/app.db}
+      UPLOAD_DIR: ${UPLOAD_DIR:-data/uploads}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-20}
+      ALLOWED_EXTENSIONS: ${ALLOWED_EXTENSIONS:-txt,docx,md,pdf,png,jpg,jpeg,tiff}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      SEMANTIC_SEARCH_ENABLED: ${SEMANTIC_SEARCH_ENABLED:-false}
+      CHROMA_DIR: ${CHROMA_DIR:-data/chroma}
+      OCR_ENABLED: ${OCR_ENABLED:-true}
+      OCR_ENGINE: ${OCR_ENGINE:-tesseract}
+      OCR_LANGUAGE: ${OCR_LANGUAGE:-eng+rus}
+      TESSERACT_CMD: ${TESSERACT_CMD:-tesseract}
+      OCR_DPI: ${OCR_DPI:-200}
+      OCR_MAX_PAGES: ${OCR_MAX_PAGES:-5}
+      OCR_PREPROCESS_IMAGES: ${OCR_PREPROCESS_IMAGES:-true}
+      OCR_IMAGE_TARGET_WIDTH: ${OCR_IMAGE_TARGET_WIDTH:-1800}
+      OCR_CONTRAST_FACTOR: ${OCR_CONTRAST_FACTOR:-1.6}
+      PROCESSING_MODE: ${PROCESSING_MODE:-sync}
+      PROCESSING_MAX_ATTEMPTS: ${PROCESSING_MAX_ATTEMPTS:-3}
+      PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-30}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

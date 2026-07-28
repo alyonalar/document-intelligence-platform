@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('Multi-document workspace') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <section class="card">
+            <a class="back-link" href="{{ url_for('home') }}">{{ _('Back') }}</a>
+            <h1>{{ _('Multi-document workspace') }}</h1>
+
+            {% if documents %}
+            <p class="compare-info">{{ _('Selected documents') }}: {{ documents|length }}</p>
+            <ul class="summary-list">
+                {% for doc in documents %}
+                <li>{{ doc.filename }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>{{ _('No documents selected') }}.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>{{ _('Ask across documents') }}</h2>
+            <p class="preview-text">
+                {{ _('Ask one question across all selected documents to get a combined answer with sources.') }}
+            </p>
+
+            <form action="{{ url_for('workspace_ask') }}" method="get">
+                {% for doc_id in document_ids %}
+                <input type="hidden" name="document_ids" value="{{ doc_id }}">
+                {% endfor %}
+
+                <input id="workspace-question" type="text" name="question" value="{{ question }}"
+                    placeholder="{{ _('Ask a question across selected documents...') }}" data-question-input>
+
+                <div class="workspace-actions">
+                    <button type="submit">{{ _('Ask') }}</button>
+                    <button type="submit" formaction="{{ url_for('workspace_compare') }}">{{ _('Compare documents') }}</button>
+                </div>
+            </form>
+
+            {% if documents %}
+            <div class="suggested-questions">
+                <p class="suggested-title">{{ _('Suggested questions') }}</p>
+
+                <div class="suggested-grid">
+                    <button type="button" class="suggestion-chip"
+                        data-question-suggestion="{{ _('What are these documents about?') }}">
+                        {{ _('What are these documents about?') }}
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        data-question-suggestion="{{ _('Which key topics repeat across the documents?') }}">
+                        {{ _('Which key topics repeat across the documents?') }}
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        data-question-suggestion="{{ _('Which important facts appear in multiple documents?') }}">
+                        {{ _('Important shared facts') }}
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        data-question-suggestion="{{ _('Summarize all selected documents') }}">
+                        {{ _('Combined summary') }}
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        data-question-suggestion="{{ _('What are the main differences between the selected documents?') }}">
+                        {{ _('Main differences') }}
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if not documents %}
+        <section class="card">
+            <div class="empty-state">
+                <p><strong>{{ _('No documents selected') }}.</strong></p>
+                <p>{{ _('Return to the home page and select at least one document for the workspace.') }}</p>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if result %}
+        <section class="card">
+            <h2>{{ _('Answer') }}</h2>
+            <div class="qa-result">
+                <p>{{ result.answer }}</p>
+
+                {% if result.model %}
+                <p><strong>{{ _('Model') }}:</strong> {{ result.model }}</p>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if result.sources %}
+        <section class="card">
+            <h2>{{ _('Sources') }}</h2>
+
+            <div class="sources-list">
+                {% for source in result.sources %}
+                <article class="source-card">
+                    <p class="source-meta">
+                        <strong>[{{ _('Source') }} {{ source.source_id }}]</strong>
+                        <a href="/documents/{{ source.document_id }}/view#chunk-{{ source.chunk_id or 1 }}">{{ source.filename }}</a>,
+                        {% if source.page_number %}
+                        <a href="/documents/{{ source.document_id }}/view#page-{{ source.page_number }}">{{ _('Page') }} {{ source.page_number }}</a>,
+                        {% endif %}
+                        {{ _('Chunk') }} {{ source.chunk_id }}
+                    </p>
+                    <pre class="document-text chunk-preview">{{ source.text }}</pre>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        {% endif %}
+
+        {% if history %}
+        <section class="card">
+            <h2>{{ _('Recent questions') }}</h2>
+            <div class="history-list">
+                {% for item in history %}
+                <article class="history-item">
+                    <p class="history-question">{{ item.question }}</p>
+                    <p class="history-answer">{{ item.answer }}</p>
+                    <p class="source-meta">
+                        {{ item.scope }}
+                        {% if item.retrieval %} / {{ item.retrieval }}{% endif %}
+                        {% if item.model %} / {{ item.model }}{% endif %}
+                    </p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <script src="{{ url_for('static', path='js/question_suggestions.js') }}"></script>
+</body>
+
+</html>

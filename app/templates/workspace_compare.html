@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare documents</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        {% include "partials/language_tools.html" %}
+        <section class="card">
+            <form action="{{ url_for('workspace') }}" method="get" class="inline-form">
+                {% for doc_id in document_ids %}
+                <input type="hidden" name="document_ids" value="{{ doc_id }}">
+                {% endfor %}
+                <button type="submit">Back to workspace</button>
+            </form>
+
+            <h1>Compare documents</h1>
+
+            {% if documents %}
+            <p class="compare-info">Выбрано документов: {{ documents|length }}</p>
+            <ul class="summary-list">
+                {% for doc in documents %}
+                <li>{{ doc.filename }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No documents selected.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Compare mode</h2>
+            <p class="preview-text">
+                Здесь можно быстро посмотреть различия и сходства между двумя выбранными документами.
+            </p>
+
+            {% if documents|length == 2 %}
+            <div class="suggested-questions">
+                <p class="suggested-title">Suggested compare prompts</p>
+
+                <div class="suggested-grid">
+                    <button type="button" class="suggestion-chip"
+                        onclick="setComparePrompt('Какие ключевые различия между этими документами?')">
+                        Ключевые различия
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        onclick="setComparePrompt('Что общего у этих документов?')">
+                        Что общего?
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        onclick="setComparePrompt('Что изменилось по смыслу между документами?')">
+                        Смысловые изменения
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        onclick="setComparePrompt('Какие факты есть только в одном из документов?')">
+                        Уникальные факты
+                    </button>
+                    <button type="button" class="suggestion-chip"
+                        onclick="setComparePrompt('Сделай краткое summary сравнения этих документов')">
+                        Summary сравнения
+                    </button>
+                </div>
+            </div>
+
+            <form action="{{ url_for('workspace_ask') }}" method="get" class="compare-followup-form">
+                {% for doc_id in document_ids %}
+                <input type="hidden" name="document_ids" value="{{ doc_id }}">
+                {% endfor %}
+
+                <input id="compare-followup-question" type="text" name="question"
+                    placeholder="Ask a follow-up question about these two documents...">
+
+                <button type="submit">Ask as follow-up</button>
+            </form>
+            {% else %}
+            <div class="empty-state">
+                <p><strong>Для compare mode нужно выбрать ровно 2 документа.</strong></p>
+                <p>Сейчас compare лучше всего работает как сценарий \"документ против документа\".</p>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if diff_result %}
+        <section class="card">
+            <h2>Local diff</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Keyword similarity</span>
+                    <strong class="stat-value">{{ diff_result.keyword_similarity }}</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Word delta</span>
+                    <strong class="stat-value">{{ diff_result.word_count_delta }}</strong>
+                </div>
+            </div>
+
+            <h3>Common keywords</h3>
+            {% if diff_result.common_keywords %}
+            <p>{{ diff_result.common_keywords|join(", ") }}</p>
+            {% else %}
+            <p>No common keywords detected.</p>
+            {% endif %}
+
+            <h3>Unique keywords</h3>
+            <div class="sources-list">
+                <article class="source-card">
+                    <p class="source-meta"><strong>{{ diff_result.doc1_name }}</strong></p>
+                    <p>{{ diff_result.only_in_doc1_keywords|join(", ") or "No unique keywords." }}</p>
+                </article>
+                <article class="source-card">
+                    <p class="source-meta"><strong>{{ diff_result.doc2_name }}</strong></p>
+                    <p>{{ diff_result.only_in_doc2_keywords|join(", ") or "No unique keywords." }}</p>
+                </article>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if result %}
+        <section class="card">
+            <h2>Comparison result</h2>
+
+            {% if result.doc1_name and result.doc2_name %}
+            <p class="compare-info">
+                Сравнение: <strong>{{ result.doc1_name }}</strong> - <strong>{{ result.doc2_name }}</strong>
+            </p>
+            {% endif %}
+
+            <div class="qa-result">
+                <pre class="document-text">{{ result.answer }}</pre>
+
+                {% if result.model %}
+                <p><strong>Model:</strong> {{ result.model }}</p>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <script>
+        function setComparePrompt(value) {
+            const input = document.getElementById("compare-followup-question");
+            if (input) {
+                input.value = value;
+                input.focus();
+            }
+        }
+    </script>
+</body>
+
+</html>

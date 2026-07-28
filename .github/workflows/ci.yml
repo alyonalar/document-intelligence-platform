@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-and-tests:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite:///data/test_app.db
+      UPLOAD_DIR: data/test_uploads
+      LLM_ENABLED: "false"
+      SEMANTIC_SEARCH_ENABLED: "false"
+      OCR_ENABLED: "false"
+      DEBUG: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Prepare local directories
+        run: mkdir -p data/test_uploads data/chroma
+      - name: Verify migrations from an empty database
+        run: alembic upgrade head
+      - name: Lint
+        run: ruff check app tests alembic scripts
+      - name: Format check
+        run: ruff format --check app tests alembic scripts
+      - name: Test with coverage
+        run: python -m pytest --cov=app --cov-report=term-missing
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t document-intelligence-platform:ci .
+      - name: Start container
+        run: |
+          docker run -d --name document-intelligence-platform-ci \
+            -p 8000:8000 \
+            -e DATABASE_URL=sqlite:///data/ci_app.db \
+            -e UPLOAD_DIR=data/uploads \
+            -e LLM_ENABLED=false \
+            -e SEMANTIC_SEARCH_ENABLED=false \
+            -e OCR_ENABLED=false \
+            document-intelligence-platform:ci
+      - name: Check health endpoint
+        run: |
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs document-intelligence-platform-ci
+          exit 1
+      - name: Stop container
+        if: always()
+        run: docker rm -f document-intelligence-platform-ci || true
